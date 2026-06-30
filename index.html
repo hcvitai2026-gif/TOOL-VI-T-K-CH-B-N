@@ -811,8 +811,8 @@ renderAll();
 <script>
 (function(){
   /* ====== CẤU HÌNH SUPABASE — điền 2 dòng dưới trước khi deploy cho team ====== */
-  var SUPA_URL="zcekhddfeheyymsgedyy";   // vd: "https://abcd1234.supabase.co"
-  var SUPA_KEY="ap-southeast-1";   // anon public key
+  var SUPA_URL="https://zcekhddfeheyymsgedyy.supabase.co";   // vd: "https://abcd1234.supabase.co"
+  var SUPA_KEY="eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InpjZWtoZGRmZWhleXltc2dlZHl5Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODI4MDY0MTAsImV4cCI6MjA5ODM4MjQxMH0.YP3HtLrFqqc2zket8T8kEZP9FZ5StFI-FRjyeiAtKGE";   // anon public key
   var WORKSPACE_ID="default";
   /* =========================================================================== */
   try{var c=JSON.parse(localStorage.getItem('supa_cfg')||'null');if(c&&c.url&&c.key){if(!SUPA_URL)SUPA_URL=c.url;if(!SUPA_KEY)SUPA_KEY=c.key}}catch(e){}
@@ -860,12 +860,4 @@ renderAll();
     var em=(r.data&&r.data.user&&r.data.user.email)||'';
     var box=document.querySelector('.settings-body');if(!box||document.getElementById('acctRow'))return;
     var d=document.createElement('div');d.id='acctRow';d.className='set-row';d.style.flexDirection='column';d.style.alignItems='stretch';
-    d.innerHTML='<div style="font-size:.8em;color:var(--muted);margin-bottom:6px">☁ '+em+'</div><button class="side-btn" id="logoutBtn">Đăng xuất</button>';
-    box.appendChild(d);
-    document.getElementById('logoutBtn').onclick=function(){supa.auth.signOut().then(function(){location.reload()})};
-  })}
-})();
-</script>
-
-</body>
-</html>
+    d.innerHTML='<div style="font-size:.8em;color:var(--muted);margin-bottom:6px">☁ '+em+'</di
