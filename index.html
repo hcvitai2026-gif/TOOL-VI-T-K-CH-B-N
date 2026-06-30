@@ -830,6 +830,7 @@ renderAll();
   }
 
   var supa=window.supabase.createClient(SUPA_URL,SUPA_KEY),cloudReady=false,lastPush=0,ct=null;
+  var CLIENT_ID=Math.random().toString(36).slice(2);
   window.__cloudPush=function(){if(!cloudReady)return;clearTimeout(ct);ct=setTimeout(pushCloud,600)};
   document.getElementById('authSend').onclick=function(){
     var em=document.getElementById('authEmail').value.trim();if(!em)return;
@@ -843,19 +844,40 @@ renderAll();
   supa.auth.onAuthStateChange(function(ev,sess){if(sess)onLogin()});
 
   function onLogin(){hide();if(cloudReady)return;cloudReady=true;pullCloud();subscribe();addAccountBar()}
-  function pushCloud(){lastPush=Date.now();supa.from('boards').upsert({id:WORKSPACE_ID,data:{projects:state.projects},updated_at:new Date().toISOString()}).then(function(r){if(r.error)console.warn('push',r.error.message)})}
+  function pushCloud(){lastPush=Date.now();supa.from('boards').upsert({id:WORKSPACE_ID,data:{projects:state.projects,writer:CLIENT_ID},updated_at:new Date().toISOString()}).then(function(r){if(r.error)console.warn('push',r.error.message)})}
+  var _firstPull=true,_lastSnap="";
   function pullCloud(){supa.from('boards').select('data').eq('id',WORKSPACE_ID).maybeSingle().then(function(r){
     if(r.error){console.warn('pull',r.error.message);return}
     if(r.data&&r.data.data&&r.data.data.projects&&r.data.data.projects.length){
-      state.projects=r.data.data.projects;
+      var d=r.data.data;
+      var foc=document.activeElement;
+      if(!_firstPull&&foc&&(foc.isContentEditable||foc.tagName==='INPUT')&&foc.closest&&foc.closest('.table-wrap'))return; // dang go thi cho
+      var snap=JSON.stringify(d.projects);
+      if(snap===_lastSnap)return; // khong doi thi thoi
+      _lastSnap=snap;
+      state.projects=d.projects;
       if(!state.projects.some(function(p){return p.id===activeId}))activeId=state.projects[0].id;
-      localStorage.setItem(LS_KEY,JSON.stringify(state));renderAll();toast('Đã tải dữ liệu team');
-    } else { pushCloud(); }
+      localStorage.setItem(LS_KEY,JSON.stringify(state));renderAll();
+      if(_firstPull){toast('Đã tải dữ liệu team')} else if(d.writer!==CLIENT_ID){toast('Đồng bộ thay đổi từ team')}
+      _firstPull=false;
+    } else { pushCloud();_firstPull=false; }
   })}
-  function subscribe(){supa.channel('board-'+WORKSPACE_ID).on('postgres_changes',{event:'*',schema:'public',table:'boards',filter:'id=eq.'+WORKSPACE_ID},function(payload){
-    if(Date.now()-lastPush<1800)return;var d=payload.new&&payload.new.data;
-    if(d&&d.projects){state.projects=d.projects;if(!state.projects.some(function(p){return p.id===activeId}))activeId=state.projects[0]&&state.projects[0].id;localStorage.setItem(LS_KEY,JSON.stringify(state));renderAll();toast('Đồng bộ thay đổi từ team')}
-  }).subscribe()}
+  function applyRemote(d){
+    if(!d||!d.projects)return;
+    if(d.writer===CLIENT_ID)return; // bo qua thay doi do chinh minh vua ghi
+    var foc=document.activeElement;
+    if(foc&&(foc.isContentEditable||foc.tagName==='INPUT')&&foc.closest&&foc.closest('.table-wrap'))return; // dang go thi cho luot sau
+    state.projects=d.projects;
+    if(!state.projects.some(function(p){return p.id===activeId}))activeId=state.projects[0]&&state.projects[0].id;
+    localStorage.setItem(LS_KEY,JSON.stringify(state));renderAll();toast('Đồng bộ thay đổi từ team');
+  }
+  function subscribe(){
+    supa.channel('board-'+WORKSPACE_ID).on('postgres_changes',{event:'*',schema:'public',table:'boards',filter:'id=eq.'+WORKSPACE_ID},function(payload){
+      applyRemote(payload.new&&payload.new.data);
+    }).subscribe();
+    window.addEventListener('focus',pullCloud);
+    setInterval(pullCloud,15000); // fallback dong bo neu realtime lo mat goi
+  }
   function addAccountBar(){supa.auth.getUser().then(function(r){
     var em=(r.data&&r.data.user&&r.data.user.email)||'';
     var box=document.querySelector('.settings-body');if(!box||document.getElementById('acctRow'))return;
