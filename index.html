@@ -337,7 +337,20 @@
       </div>
     </div>
   </div>
+  <aside class="rightbar" id="rightbar">
+    <div class="rb-resize" id="rbResize"></div>
+    <div class="rb-head">
+      <span class="rb-title">📝 Nháp kịch bản</span>
+      <div class="rb-tools">
+        <button class="mini" id="rbAdd" title="Thêm dòng nháp">＋</button>
+        <button class="mini" id="rbCollapse" title="Thu gọn">⟩</button>
+      </div>
+    </div>
+    <div class="rb-hint">Gõ ý tưởng/lời thoại ở đây, dùng thanh công cụ phía trên để định dạng. Rồi <b>kéo nút ⠿ của từng dòng</b> thả vào cảnh hoặc vị trí mong muốn trong bảng — khỏi copy nhiều lần.</div>
+    <div class="rb-lines" id="rbLines"></div>
+  </aside>
 </div>
+<button class="rb-fab" id="rbFab" title="Mở nháp">📝</button>
 
 <div class="modal-bg" id="charModal"><div class="modal">
   <h3>Quản lý nhân vật</h3>
@@ -383,6 +396,31 @@
   .modal-row{display:flex;gap:8px;justify-content:flex-end;margin-top:6px}
   .toast{position:fixed;bottom:20px;left:50%;transform:translateX(-50%);background:var(--text);color:var(--bg);padding:10px 16px;border-radius:10px;z-index:200;opacity:0;transition:.25s;font-size:.9em}
   .toast.show{opacity:1}
+  /* ===== right draft panel ===== */
+  .rightbar{flex:0 0 var(--rbw,340px);width:var(--rbw,340px);background:var(--panel);border-left:1px solid var(--line);display:flex;flex-direction:column;position:sticky;top:0;height:100vh}
+  body.rb-collapsed .rightbar{display:none}
+  .rb-resize{position:absolute;left:-3px;top:0;width:7px;height:100%;cursor:col-resize;z-index:8}
+  .rb-resize:hover{background:var(--accent);opacity:.35}
+  .rb-head{display:flex;align-items:center;justify-content:space-between;padding:12px 12px 8px;border-bottom:1px solid var(--line)}
+  .rb-title{font-weight:700}
+  .rb-tools{display:flex;gap:4px}
+  .rb-hint{font-size:.78em;color:var(--muted);padding:8px 12px;line-height:1.5}
+  .rb-lines{flex:1;overflow:auto;padding:6px 10px 40px;display:flex;flex-direction:column;gap:6px}
+  .rb-line{display:flex;align-items:flex-start;gap:6px;border:1px solid var(--line);border-radius:9px;background:var(--panel2);padding:6px 8px}
+  .rb-line .grip{cursor:grab;color:var(--muted);flex:0 0 auto;padding-top:3px;user-select:none;font-size:1.05em;line-height:1}
+  .rb-line .grip:active{cursor:grabbing}
+  .rb-line .cell{flex:1;background:transparent}
+  .rb-line .rm{border:none;background:none;color:var(--muted);cursor:pointer;padding:0 2px}
+  .rb-line .rm:hover{color:var(--danger)}
+  .rb-line.dragging{opacity:.45}
+  .rb-fab{position:fixed;right:14px;bottom:18px;z-index:40;width:48px;height:48px;border-radius:50%;border:none;background:var(--accent);color:#fff;font-size:1.25em;box-shadow:0 8px 24px rgba(0,0,0,.25);display:none}
+  body.rb-collapsed .rb-fab{display:flex;align-items:center;justify-content:center}
+  tr.drop-target td{box-shadow:inset 0 -3px 0 var(--accent)}
+  tr.scene-hdr.drop-target td{box-shadow:inset 0 3px 0 var(--accent)}
+  @media (max-width:820px){
+    .rightbar{position:fixed;right:0;top:0;height:100vh;z-index:60;width:min(86vw,360px);box-shadow:-8px 0 30px rgba(0,0,0,.25)}
+    .rb-resize{display:none}
+  }
 </style>
 <script>
 const P={
@@ -545,7 +583,7 @@ function renderTable(){
 
   p.scenes.forEach((scene,si)=>{
     if(filterChar && !scene.rows.some(r=>(r.chars||[]).includes(filterChar))) return;
-    const htr=document.createElement("tr");htr.className="scene-hdr";
+    const htr=document.createElement("tr");htr.className="scene-hdr";htr.dataset.si=si;
     htr.innerHTML='<td class="no-print"></td><td colspan="'+(span+1)+'">'+
       '<div class="scene-hdr-inner">'+
         '<button class="scene-collapse" data-sact="collapse">'+svg(scene.collapsed?'chevR':'chevD','sm')+'</button>'+
@@ -575,7 +613,7 @@ function renderTable(){
 
     if(scene.collapsed){const ctr=document.createElement("tr");ctr.innerHTML='<td class="no-print"></td><td colspan="'+(span+1)+'"><div class="collapsed-note">▸ '+scene.rows.length+' dòng (đã thu gọn)</div></td>';tb.appendChild(ctr);return}
     scene.rows.forEach((row,ri)=>tb.appendChild(buildRow(scene,si,row,ri,adv)));
-    const atr=document.createElement("tr");atr.className="no-print";
+    const atr=document.createElement("tr");atr.className="no-print";atr.dataset.si=si;
     atr.innerHTML='<td></td><td class="addrow-inline" colspan="'+(span+1)+'"><button class="btn" data-addrow="1">＋ Thêm dòng</button></td>';
     atr.querySelector("[data-addrow]").onclick=()=>{scene.rows.push(newRow(p));save();renderTable()};
     tb.appendChild(atr);
@@ -591,7 +629,7 @@ function optField(row,key,icon,lab,ph){
     '<button class="rm" data-rm="'+key+'">'+svg('x','sm')+'</button></div>';
 }
 function buildRow(scene,si,row,ri,adv){
-  const p=proj();const tr=document.createElement("tr");
+  const p=proj();const tr=document.createElement("tr");tr.dataset.si=si;tr.dataset.ri=ri;
   const cs=rowChars(row);
   tr.setAttribute("data-charcol","");tr.style.setProperty("--cc",cs[0]?cs[0].color:"transparent");
 
@@ -876,10 +914,71 @@ renderAll();
       applyRemote(payload.new&&payload.new.data);
     }).subscribe();
     window.addEventListener('focus',pullCloud);
-    setInterval(pullCloud,15000); // fallback dong bo neu realtime lo mat goi
+    setInterval(pullCloud,5000); // fallback dong bo neu realtime lo mat goi
   }
   function addAccountBar(){supa.auth.getUser().then(function(r){
     var em=(r.data&&r.data.user&&r.data.user.email)||'';
     var box=document.querySelector('.settings-body');if(!box||document.getElementById('acctRow'))return;
     var d=document.createElement('div');d.id='acctRow';d.className='set-row';d.style.flexDirection='column';d.style.alignItems='stretch';
-    d.innerHTML='<div style="font-size:.8em;color:var(--muted);margin-bottom:6px">☁ '+em+'</di
+    d.innerHTML='<div style="font-size:.8em;color:var(--muted);margin-bottom:6px">☁ '+em+'</div><button class="side-btn" id="logoutBtn">Đăng xuất</button>';
+    box.appendChild(d);
+    document.getElementById('logoutBtn').onclick=function(){supa.auth.signOut().then(function(){location.reload()})};
+  })}
+})();
+</script>
+<script>
+(function(){
+  var rb=document.getElementById('rightbar'),fab=document.getElementById('rbFab');
+  var w=parseInt(localStorage.getItem('rb_w')||'340');document.documentElement.style.setProperty('--rbw',w+'px');
+  function setOpen(o){document.body.classList.toggle('rb-collapsed',!o);localStorage.setItem('rb_open',o?'1':'0')}
+  setOpen(localStorage.getItem('rb_open')==='1');
+  fab.onclick=function(){setOpen(true)};
+  document.getElementById('rbCollapse').onclick=function(){setOpen(false)};
+  var rz=document.getElementById('rbResize'),drag=false;
+  rz.addEventListener('mousedown',function(e){drag=true;e.preventDefault();document.body.style.userSelect='none'});
+  document.addEventListener('mousemove',function(e){if(!drag)return;var ww=Math.max(220,Math.min(680,window.innerWidth-e.clientX));document.documentElement.style.setProperty('--rbw',ww+'px')});
+  document.addEventListener('mouseup',function(){if(!drag)return;drag=false;document.body.style.userSelect='';localStorage.setItem('rb_w',parseInt(getComputedStyle(document.documentElement).getPropertyValue('--rbw'))||340)});
+
+  function curKey(){return 'draft_'+(typeof activeId!=='undefined'?activeId:'x')}
+  function loadLines(){try{return JSON.parse(localStorage.getItem(curKey())||'[]')}catch(e){return[]}}
+  function saveLines(a){localStorage.setItem(curKey(),JSON.stringify(a))}
+  var box=document.getElementById('rbLines');
+  function persist(){var a=[];box.querySelectorAll('.rb-line .cell').forEach(function(c){a.push(c.innerHTML)});saveLines(a)}
+  function addLine(html,focus){
+    var d=document.createElement('div');d.className='rb-line';
+    d.innerHTML='<span class="grip" draggable="true" title="Kéo thả vào bảng">⠹</span><div class="cell" contenteditable="true" data-empty="Ý tưởng / lời thoại..."></div><button class="rm" title="Xóa">×</button>';
+    var cell=d.querySelector('.cell');cell.innerHTML=html||'';
+    cell.addEventListener('blur',persist);
+    cell.addEventListener('keydown',function(e){if(e.key==='Enter'&&!e.shiftKey){e.preventDefault();persist();addLine('',true)}});
+    d.querySelector('.rm').onclick=function(){d.remove();persist()};
+    var grip=d.querySelector('.grip');
+    grip.addEventListener('dragstart',function(e){window.__draftDrag=cell.innerHTML;d.classList.add('dragging');e.dataTransfer.setData('text/plain',cell.textContent||'');e.dataTransfer.effectAllowed='copy'});
+    grip.addEventListener('dragend',function(){window.__draftDrag=null;d.classList.remove('dragging');clearDrop()});
+    box.appendChild(d);if(focus)cell.focus();
+  }
+  function renderLines(){box.innerHTML='';var a=loadLines();if(!a.length)a=[''];a.forEach(function(h){addLine(h,false)})}
+  document.getElementById('rbAdd').onclick=function(){addLine('',true)};
+  renderLines();
+  var lastActive=typeof activeId!=='undefined'?activeId:null;
+  setInterval(function(){if(typeof activeId!=='undefined'&&activeId!==lastActive){lastActive=activeId;renderLines()}},700);
+
+  var tbody=document.getElementById('tbody');
+  function clearDrop(){var t=tbody.querySelector('tr.drop-target');if(t)t.classList.remove('drop-target')}
+  tbody.addEventListener('dragover',function(e){if(!window.__draftDrag)return;e.preventDefault();e.dataTransfer.dropEffect='copy';var tr=e.target.closest&&e.target.closest('tr');clearDrop();if(tr)tr.classList.add('drop-target')});
+  tbody.addEventListener('dragleave',function(e){if(e.target===tbody)clearDrop()});
+  tbody.addEventListener('drop',function(e){
+    if(!window.__draftDrag)return;e.preventDefault();
+    var html=window.__draftDrag,tr=e.target.closest&&e.target.closest('tr');clearDrop();
+    var p=proj();if(!p)return;var si=null,idx=null;
+    if(tr&&tr.classList.contains('scene-hdr')){si=+tr.dataset.si;idx=0}
+    else if(tr&&tr.dataset.si!=null&&tr.dataset.ri!=null){si=+tr.dataset.si;idx=(+tr.dataset.ri)+1}
+    else if(tr&&tr.dataset.si!=null){si=+tr.dataset.si;idx=p.scenes[si]?p.scenes[si].rows.length:0}
+    if(si==null||isNaN(si)||!p.scenes[si]){si=p.scenes.length-1;idx=p.scenes[si].rows.length}
+    var nr=newRow(p);nr.content=html;p.scenes[si].rows.splice(idx,0,nr);save();renderTable();
+    toast('Đã thả 1 dòng vào CẢNH '+(si+1));
+  });
+})();
+</script>
+
+</body>
+</html>
